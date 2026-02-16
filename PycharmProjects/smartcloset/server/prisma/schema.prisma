@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──────────────────────────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+  UNSPECIFIED
+}
+
+enum PreferredStyle {
+  CASUAL
+  FORMAL
+  SPORTY
+  CLASSIC
+  STREETWEAR
+  MINIMALIST
+}
+
+enum ClothingCategory {
+  TOP
+  BOTTOM
+  OUTERWEAR
+  SHOES
+  ACCESSORY
+  UNDERWEAR
+  SWIMWEAR
+  FORMAL
+}
+
+enum Pattern {
+  SOLID
+  STRIPED
+  PLAID
+  FLORAL
+  PRINTED
+  OTHER
+}
+
+enum Season {
+  SPRING
+  SUMMER
+  FALL
+  WINTER
+}
+
+enum Occasion {
+  CASUAL
+  WORK
+  FORMAL
+  SPORT
+  GOING_OUT
+}
+
+// ── Models ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  gender       Gender   @default(UNSPECIFIED)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile      UserProfile?
+  clothingItems ClothingItem[]
+  outfits      Outfit[]
+  wearLogs     WearLog[]
+  refreshTokens RefreshToken[]
+}
+
+model UserProfile {
+  id             String         @id @default(uuid())
+  userId         String         @unique
+  heightCm       Float
+  weightKg       Float
+  chestCm        Float?
+  waistCm        Float?
+  hipsCm         Float?
+  shouldersCm    Float?
+  skinTone       String?
+  avatarUrl      String?
+  preferredStyle PreferredStyle @default(CASUAL)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ClothingItem {
+  id             String            @id @default(uuid())
+  userId         String
+  name           String
+  category       ClothingCategory
+  subcategory    String
+  color          String
+  secondaryColor String?
+  pattern        Pattern           @default(SOLID)
+  material       String?
+  brand          String?
+  size           String?
+  season         String            @default("[]")
+  occasion       String            @default("[]")
+  imageUrl       String
+  thumbnailUrl   String?
+  timesWorn      Int               @default(0)
+  lastWornAt     DateTime?
+  isFavorite     Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfits Outfit[] @relation("OutfitItems")
+
+  @@index([userId])
+  @@index([category])
+}
+
+model Outfit {
+  id            String     @id @default(uuid())
+  userId        String
+  name          String
+  occasion      Occasion
+  season        String     @default("[]")
+  rating        Int?
+  isAISuggested Boolean    @default(false)
+  imageUrl      String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ClothingItem[] @relation("OutfitItems")
+  wearLogs WearLog[]
+
+  @@index([userId])
+}
+
+model WearLog {
+  id               String   @id @default(uuid())
+  userId           String
+  outfitId         String?
+  date             DateTime
+  weatherTemp      Float?
+  weatherCondition String?
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfit Outfit? @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([date])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
