@@ -19,6 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { getFullImageUrl } from '../utils/image';
+import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import type { ClosetStackParamList } from '../navigation/types';
 import {
   ClothingItem,
@@ -78,6 +79,8 @@ export function ClosetScreen() {
   const [formSeasons, setFormSeasons] = useState<Season[]>([]);
   const [formOccasions, setFormOccasions] = useState<Occasion[]>([]);
   const [formImageUri, setFormImageUri] = useState('');
+  const [previewUri, setPreviewUri] = useState('');
+  const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
 
   const fetchItems = useCallback(async () => {
     try {
@@ -105,28 +108,24 @@ export function ClosetScreen() {
     fetchItems();
   }, [fetchItems]);
 
-  const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
+  const launchPicker = async (source: 'camera' | 'library') => {
+    const launchFn =
+      source === 'camera'
+        ? ImagePicker.launchCameraAsync
+        : ImagePicker.launchImageLibraryAsync;
+
+    const result = await launchFn({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]) {
-      setFormImageUri(result.assets[0].uri);
+      setPreviewUri(result.assets[0].uri);
+      setPreviewSource(source);
     }
   };
 
-  const handleTakePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      setFormImageUri(result.assets[0].uri);
-    }
-  };
+  const handlePickImage = () => launchPicker('library');
+  const handleTakePhoto = () => launchPicker('camera');
 
   const resetForm = () => {
     setFormName('');
@@ -313,6 +312,21 @@ export function ClosetScreen() {
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
+
+      {/* Photo Preview */}
+      <PhotoPreviewModal
+        visible={!!previewUri}
+        imageUri={previewUri}
+        onApprove={() => {
+          setFormImageUri(previewUri);
+          setPreviewUri('');
+        }}
+        onRetake={() => {
+          setPreviewUri('');
+          launchPicker(previewSource);
+        }}
+        onCancel={() => setPreviewUri('')}
+      />
 
       {/* Add Item Modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">

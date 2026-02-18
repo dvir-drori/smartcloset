@@ -26,6 +26,7 @@ import {
   toggleFavorite,
 } from '../services/clothingItems';
 import { updateClothingItem } from '../services/clothingItems';
+import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import type { ClosetStackScreenProps } from '../navigation/types';
 import api from '../services/api';
 
@@ -73,6 +74,8 @@ export function ClothingItemDetailScreen({ route, navigation }: Props) {
   const [editSeasons, setEditSeasons] = useState<Season[]>([]);
   const [editOccasions, setEditOccasions] = useState<Occasion[]>([]);
   const [editImageUri, setEditImageUri] = useState('');
+  const [previewUri, setPreviewUri] = useState('');
+  const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
 
   const fetchItem = useCallback(async () => {
     try {
@@ -176,27 +179,26 @@ export function ClothingItemDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handlePickEditImage = async () => {
+  const launchEditPicker = async (source: 'camera' | 'library') => {
+    const launchFn =
+      source === 'camera'
+        ? ImagePicker.launchCameraAsync
+        : ImagePicker.launchImageLibraryAsync;
+
+    const result = await launchFn({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setPreviewUri(result.assets[0].uri);
+      setPreviewSource(source);
+    }
+  };
+
+  const handlePickEditImage = () => {
     Alert.alert('Change Photo', '', [
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true, aspect: [1, 1], quality: 0.8,
-          });
-          if (!result.canceled && result.assets?.[0]) setEditImageUri(result.assets[0].uri);
-        },
-      },
-      {
-        text: 'Choose from Library',
-        onPress: async () => {
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true, aspect: [1, 1], quality: 0.8,
-          });
-          if (!result.canceled && result.assets?.[0]) setEditImageUri(result.assets[0].uri);
-        },
-      },
+      { text: 'Take Photo', onPress: () => launchEditPicker('camera') },
+      { text: 'Choose from Library', onPress: () => launchEditPicker('library') },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -290,6 +292,21 @@ export function ClothingItemDetailScreen({ route, navigation }: Props) {
           <Text style={styles.deleteBtnText}>Delete</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Photo Preview */}
+      <PhotoPreviewModal
+        visible={!!previewUri}
+        imageUri={previewUri}
+        onApprove={() => {
+          setEditImageUri(previewUri);
+          setPreviewUri('');
+        }}
+        onRetake={() => {
+          setPreviewUri('');
+          launchEditPicker(previewSource);
+        }}
+        onCancel={() => setPreviewUri('')}
+      />
 
       {/* Edit Modal */}
       <Modal visible={editModal} animationType="slide" presentationStyle="pageSheet">

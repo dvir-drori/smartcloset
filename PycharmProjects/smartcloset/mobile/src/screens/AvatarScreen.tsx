@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { getFullImageUrl } from '../utils/image';
 import {
@@ -35,6 +36,9 @@ export function AvatarScreen() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewUri, setPreviewUri] = useState('');
+  const [previewAngle, setPreviewAngle] = useState<Angle>('FRONT');
+  const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
 
   const fetchPhotos = useCallback(async () => {
     try {
@@ -62,17 +66,25 @@ export function AvatarScreen() {
 
     const result = await launchFn({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [3, 4],
       quality: 0.8,
     });
 
     if (result.canceled || !result.assets?.[0]) return;
 
+    setPreviewUri(result.assets[0].uri);
+    setPreviewAngle(angle);
+    setPreviewSource(source);
+  };
+
+  const approvePhoto = async () => {
+    const uri = previewUri;
+    const angle = previewAngle;
+    setPreviewUri('');
+
     setLoading(true);
     setError(null);
     try {
-      await uploadBodyPhoto(result.assets[0].uri, angle);
+      await uploadBodyPhoto(uri, angle);
       await fetchPhotos();
     } catch {
       setError('Failed to upload photo');
@@ -147,6 +159,18 @@ export function AvatarScreen() {
           );
         })}
       </View>
+
+      <PhotoPreviewModal
+        visible={!!previewUri}
+        imageUri={previewUri}
+        aspectRatio={3 / 4}
+        onApprove={approvePhoto}
+        onRetake={() => {
+          setPreviewUri('');
+          pickImage(previewAngle, previewSource);
+        }}
+        onCancel={() => setPreviewUri('')}
+      />
 
       {loading && (
         <View style={styles.loadingOverlay}>
