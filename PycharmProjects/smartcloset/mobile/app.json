@@ -25,7 +25,14 @@
     },
     "plugins": [
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SmartCloset needs access to your photos to add clothing items and body profile photos.",
+          "cameraPermission": "SmartCloset needs access to your camera to photograph clothing items and take body profile photos."
+        }
+      ]
     ]
   }
 }

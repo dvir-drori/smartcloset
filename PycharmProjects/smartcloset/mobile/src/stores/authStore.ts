@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User, registerUser, loginUser, logoutUser, getMe, RegisterParams, LoginParams } from '../services/auth';
-import { setAccessToken, setRefreshToken, getRefreshToken, clearTokens } from '../services/tokenStorage';
+import { setAccessToken, setRefreshToken, getAccessToken, getRefreshToken, clearTokens } from '../services/tokenStorage';
 
 interface AuthState {
   user: User | null;
@@ -63,8 +63,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   loadUser: async () => {
-    set({ isLoading: true });
     try {
+      const token = await getAccessToken();
+      if (!token) {
+        set({ user: null, isAuthenticated: false, isLoading: false });
+        return;
+      }
+      set({ isLoading: true });
       const { user } = await getMe();
       set({ user, isAuthenticated: true, isLoading: false });
     } catch {

@@ -13,7 +13,7 @@ export type RootTabParamList = {
   Closet: undefined;
   Outfits: undefined;
   Avatar: undefined;
-  Shop: undefined;
+  Profile: undefined;
 };
 
 export type RootTabScreenProps<T extends keyof RootTabParamList> =

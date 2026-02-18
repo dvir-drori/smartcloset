@@ -5,7 +5,7 @@ import { RootTabParamList } from './types';
 import { ClosetScreen } from '../screens/ClosetScreen';
 import { OutfitsScreen } from '../screens/OutfitsScreen';
 import { AvatarScreen } from '../screens/AvatarScreen';
-import { ShopScreen } from '../screens/ShopScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { Colors, FontSize } from '../constants/theme';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -13,8 +13,8 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 const TAB_ICONS: Record<keyof RootTabParamList, keyof typeof Ionicons.glyphMap> = {
   Closet: 'shirt-outline',
   Outfits: 'grid-outline',
-  Avatar: 'person-outline',
-  Shop: 'cart-outline',
+  Avatar: 'body-outline',
+  Profile: 'person-outline',
 };
 
 export function AppNavigator() {
@@ -34,7 +34,7 @@ export function AppNavigator() {
       <Tab.Screen name="Closet" component={ClosetScreen} />
       <Tab.Screen name="Outfits" component={OutfitsScreen} />
       <Tab.Screen name="Avatar" component={AvatarScreen} />
-      <Tab.Screen name="Shop" component={ShopScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
