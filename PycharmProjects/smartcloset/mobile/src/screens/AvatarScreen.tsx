@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
+import { BodyProfileCard } from '../components/BodyProfileCard';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { getFullImageUrl } from '../utils/image';
 import {
@@ -19,6 +20,14 @@ import {
   getBodyPhotos,
   deleteBodyPhoto,
 } from '../services/bodyPhotos';
+import {
+  UserProfile,
+  HairStyle,
+  HairColor,
+  BodyShape,
+  getProfile,
+  upsertProfile,
+} from '../services/profile';
 
 type Angle = 'FRONT' | 'SIDE' | 'BACK';
 
@@ -28,17 +37,69 @@ const ANGLES: { key: Angle; label: string }[] = [
   { key: 'BACK', label: 'Back' },
 ];
 
+const SKIN_TONES: { key: string; color: string }[] = [
+  { key: 'fair', color: '#FDEBD0' },
+  { key: 'light', color: '#F5CBA7' },
+  { key: 'medium', color: '#E0AC69' },
+  { key: 'olive', color: '#C68642' },
+  { key: 'tan', color: '#A0522D' },
+  { key: 'brown', color: '#8D5524' },
+  { key: 'dark', color: '#5C3317' },
+];
+
+const HAIR_STYLES: { key: HairStyle; label: string }[] = [
+  { key: 'SHORT', label: 'Short' },
+  { key: 'MEDIUM', label: 'Medium' },
+  { key: 'LONG', label: 'Long' },
+  { key: 'CURLY', label: 'Curly' },
+  { key: 'BRAIDS', label: 'Braids' },
+  { key: 'BUN', label: 'Bun' },
+  { key: 'PONYTAIL', label: 'Ponytail' },
+  { key: 'BUZZ', label: 'Buzz' },
+];
+
+const HAIR_COLORS: { key: HairColor; color: string; label: string }[] = [
+  { key: 'BLACK', color: '#1C1C1C', label: 'Black' },
+  { key: 'BROWN', color: '#6B4226', label: 'Brown' },
+  { key: 'BLONDE', color: '#D4A76A', label: 'Blonde' },
+  { key: 'RED', color: '#B7472A', label: 'Red' },
+  { key: 'AUBURN', color: '#922724', label: 'Auburn' },
+  { key: 'GRAY', color: '#9E9E9E', label: 'Gray' },
+  { key: 'WHITE', color: '#F0F0F0', label: 'White' },
+];
+
+const BODY_SHAPES: { key: BodyShape; label: string }[] = [
+  { key: 'RECTANGLE', label: 'Rectangle' },
+  { key: 'TRIANGLE', label: 'Triangle' },
+  { key: 'INVERTED_TRIANGLE', label: 'Inverted Triangle' },
+  { key: 'HOURGLASS', label: 'Hourglass' },
+  { key: 'OVAL', label: 'Oval' },
+];
+
 export function AvatarScreen() {
   const [photos, setPhotos] = useState<Record<Angle, BodyPhoto | null>>({
     FRONT: null,
     SIDE: null,
     BACK: null,
   });
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewUri, setPreviewUri] = useState('');
   const [previewAngle, setPreviewAngle] = useState<Angle>('FRONT');
   const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      const data = await getProfile();
+      setProfile(data.profile ?? null);
+    } catch {
+      // Profile not set up yet
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, []);
 
   const fetchPhotos = useCallback(async () => {
     try {
@@ -55,8 +116,32 @@ export function AvatarScreen() {
   }, []);
 
   useEffect(() => {
+    fetchProfile();
     fetchPhotos();
-  }, [fetchPhotos]);
+  }, [fetchProfile, fetchPhotos]);
+
+  const saveAvatarField = async (updates: Partial<{ skinTone: string; hairStyle: HairStyle; hairColor: HairColor; bodyShape: BodyShape }>) => {
+    if (!profile) return;
+    try {
+      const updated = await upsertProfile({
+        heightCm: profile.heightCm,
+        weightKg: profile.weightKg,
+        chestCm: profile.chestCm,
+        waistCm: profile.waistCm,
+        hipsCm: profile.hipsCm,
+        shouldersCm: profile.shouldersCm,
+        skinTone: profile.skinTone,
+        hairStyle: profile.hairStyle,
+        hairColor: profile.hairColor,
+        bodyShape: profile.bodyShape,
+        preferredStyle: profile.preferredStyle,
+        ...updates,
+      });
+      setProfile(updated);
+    } catch {
+      Alert.alert('Error', 'Failed to save');
+    }
+  };
 
   const pickImage = async (angle: Angle, source: 'camera' | 'library') => {
     const launchFn =
@@ -111,9 +196,6 @@ export function AvatarScreen() {
 
   const handleSlotPress = (angle: Angle) => {
     const existing = photos[angle];
-    const options: string[] = ['Take Photo', 'Choose from Library'];
-    if (existing) options.push('Delete');
-    options.push('Cancel');
 
     Alert.alert('Body Photo', `${angle.charAt(0) + angle.slice(1).toLowerCase()} view`, [
       { text: 'Take Photo', onPress: () => pickImage(angle, 'camera') },
@@ -125,39 +207,133 @@ export function AvatarScreen() {
     ]);
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.scrollContent} style={styles.container}>
-      <Text style={styles.title}>Body Photos</Text>
-      <Text style={styles.subtitle}>
-        Add front, side, and back photos for your avatar
-      </Text>
+  if (loadingProfile) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
 
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {error && <Text style={styles.errorText}>{error}</Text>}
 
-      <View style={styles.photoRow}>
-        {ANGLES.map(({ key, label }) => {
-          const photo = photos[key];
-          return (
-            <TouchableOpacity
-              key={key}
-              style={styles.photoSlot}
-              onPress={() => handleSlotPress(key)}
-              disabled={loading}
-            >
-              {photo ? (
-                <Image
-                  source={{ uri: getFullImageUrl(photo.imageUrl) }}
-                  style={styles.photoImage}
-                />
-              ) : (
-                <View style={styles.placeholder}>
-                  <Text style={styles.placeholderIcon}>+</Text>
-                </View>
-              )}
-              <Text style={styles.slotLabel}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Section 1: Body Profile Card */}
+      <BodyProfileCard profile={profile} />
+
+      {/* Section 2: Avatar Customization */}
+      {profile ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Avatar Customization</Text>
+
+          {/* Skin Tone */}
+          <Text style={styles.fieldLabel}>Skin Tone</Text>
+          <View style={styles.swatchRow}>
+            {SKIN_TONES.map((st) => (
+              <TouchableOpacity
+                key={st.key}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: st.color },
+                  profile.skinTone === st.key && styles.swatchActive,
+                ]}
+                onPress={() => saveAvatarField({ skinTone: st.key })}
+              />
+            ))}
+          </View>
+
+          {/* Hair Style */}
+          <Text style={styles.fieldLabel}>Hair Style</Text>
+          <View style={styles.chipRow}>
+            {HAIR_STYLES.map((hs) => (
+              <TouchableOpacity
+                key={hs.key}
+                style={[styles.chip, profile.hairStyle === hs.key && styles.chipActive]}
+                onPress={() => saveAvatarField({ hairStyle: hs.key })}
+              >
+                <Text style={[styles.chipText, profile.hairStyle === hs.key && styles.chipTextActive]}>
+                  {hs.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Hair Color */}
+          <Text style={styles.fieldLabel}>Hair Color</Text>
+          <View style={styles.swatchRow}>
+            {HAIR_COLORS.map((hc) => (
+              <TouchableOpacity
+                key={hc.key}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: hc.color },
+                  profile.hairColor === hc.key && styles.swatchActive,
+                ]}
+                onPress={() => saveAvatarField({ hairColor: hc.key })}
+              />
+            ))}
+          </View>
+
+          {/* Body Shape */}
+          <Text style={styles.fieldLabel}>Body Shape</Text>
+          <View style={styles.chipRow}>
+            {BODY_SHAPES.map((bs) => (
+              <TouchableOpacity
+                key={bs.key}
+                style={[styles.chip, profile.bodyShape === bs.key && styles.chipActive]}
+                onPress={() => saveAvatarField({ bodyShape: bs.key })}
+              >
+                <Text style={[styles.chipText, profile.bodyShape === bs.key && styles.chipTextActive]}>
+                  {bs.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Avatar Customization</Text>
+          <View style={styles.setupCta}>
+            <Text style={styles.setupText}>
+              Set up your measurements in the Profile tab to customize your avatar
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Section 3: Body Photos */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Body Photos</Text>
+        <Text style={styles.sectionSubtitle}>
+          Add front, side, and back photos for reference
+        </Text>
+
+        <View style={styles.photoRow}>
+          {ANGLES.map(({ key, label }) => {
+            const photo = photos[key];
+            return (
+              <TouchableOpacity
+                key={key}
+                style={styles.photoSlot}
+                onPress={() => handleSlotPress(key)}
+                disabled={loading}
+              >
+                {photo ? (
+                  <Image
+                    source={{ uri: getFullImageUrl(photo.imageUrl) }}
+                    style={styles.photoImage}
+                  />
+                ) : (
+                  <View style={styles.placeholder}>
+                    <Text style={styles.placeholderIcon}>+</Text>
+                  </View>
+                )}
+                <Text style={styles.slotLabel}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       <PhotoPreviewModal
@@ -187,28 +363,92 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: Spacing.lg,
+    padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
-  title: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xl,
-    textAlign: 'center',
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
   },
   errorText: {
     fontSize: FontSize.sm,
     color: Colors.error,
     marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  section: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.card,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
+  },
+  sectionSubtitle: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+  },
+  fieldLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  swatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  swatchActive: {
+    borderColor: Colors.accent,
+    borderWidth: 3,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  chipActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  chipText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  chipTextActive: {
+    color: '#fff',
+  },
+  setupCta: {
+    paddingVertical: Spacing.xl,
+    alignItems: 'center',
+  },
+  setupText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   photoRow: {
@@ -231,7 +471,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
     borderRadius: BorderRadius.card,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderWidth: 2,
     borderColor: Colors.border,
     borderStyle: 'dashed',

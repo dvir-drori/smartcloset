@@ -229,6 +229,17 @@ export function OutfitsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header with Recommendations button */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity
+          style={styles.recommendBtn}
+          onPress={() => navigation.navigate('Recommendations')}
+        >
+          <Ionicons name="sparkles" size={20} color={Colors.accent} />
+          <Text style={styles.recommendBtnText}>AI Suggest</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Occasion Filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
         <TouchableOpacity
@@ -371,6 +382,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  recommendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  recommendBtnText: {
+    fontSize: FontSize.sm,
+    color: Colors.accent,
+    fontWeight: FontWeight.medium,
   },
   filterBar: {
     maxHeight: 52,

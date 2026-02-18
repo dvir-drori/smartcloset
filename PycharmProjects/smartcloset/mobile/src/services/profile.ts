@@ -1,5 +1,9 @@
 import api from './api';
 
+export type HairStyle = 'SHORT' | 'MEDIUM' | 'LONG' | 'CURLY' | 'BRAIDS' | 'BUN' | 'PONYTAIL' | 'BUZZ';
+export type HairColor = 'BLACK' | 'BROWN' | 'BLONDE' | 'RED' | 'AUBURN' | 'GRAY' | 'WHITE';
+export type BodyShape = 'RECTANGLE' | 'TRIANGLE' | 'INVERTED_TRIANGLE' | 'HOURGLASS' | 'OVAL';
+
 export interface UserProfile {
   id: string;
   userId: string;
@@ -10,6 +14,9 @@ export interface UserProfile {
   hipsCm?: number;
   shouldersCm?: number;
   skinTone?: string;
+  hairStyle?: HairStyle;
+  hairColor?: HairColor;
+  bodyShape?: BodyShape;
   preferredStyle: string;
   createdAt: string;
   updatedAt: string;
@@ -32,6 +39,9 @@ export interface UpsertProfileParams {
   hipsCm?: number;
   shouldersCm?: number;
   skinTone?: string;
+  hairStyle?: HairStyle;
+  hairColor?: HairColor;
+  bodyShape?: BodyShape;
   preferredStyle?: string;
 }
 

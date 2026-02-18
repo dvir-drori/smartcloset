@@ -5,6 +5,9 @@ import { AuthenticatedRequest } from '../types/auth';
 
 const genders = ['MALE', 'FEMALE', 'UNSPECIFIED'] as const;
 const preferredStyles = ['CASUAL', 'FORMAL', 'SPORTY', 'CLASSIC', 'STREETWEAR', 'MINIMALIST'] as const;
+const hairStyles = ['SHORT', 'MEDIUM', 'LONG', 'CURLY', 'BRAIDS', 'BUN', 'PONYTAIL', 'BUZZ'] as const;
+const hairColors = ['BLACK', 'BROWN', 'BLONDE', 'RED', 'AUBURN', 'GRAY', 'WHITE'] as const;
+const bodyShapes = ['RECTANGLE', 'TRIANGLE', 'INVERTED_TRIANGLE', 'HOURGLASS', 'OVAL'] as const;
 
 export const updateUserSchema = z.object({
   fullName: z.string().min(1, 'Name is required').optional(),
@@ -19,6 +22,9 @@ export const upsertProfileSchema = z.object({
   hipsCm: z.number().positive().optional(),
   shouldersCm: z.number().positive().optional(),
   skinTone: z.string().optional(),
+  hairStyle: z.enum(hairStyles).optional(),
+  hairColor: z.enum(hairColors).optional(),
+  bodyShape: z.enum(bodyShapes).optional(),
   preferredStyle: z.enum(preferredStyles).optional(),
 });
 
@@ -65,6 +71,9 @@ export async function upsertProfile(req: AuthenticatedRequest, res: Response): P
         hipsCm: body.hipsCm,
         shouldersCm: body.shouldersCm,
         skinTone: body.skinTone,
+        hairStyle: body.hairStyle,
+        hairColor: body.hairColor,
+        bodyShape: body.bodyShape,
         preferredStyle: body.preferredStyle ?? 'CASUAL',
       },
       create: {
@@ -76,6 +85,9 @@ export async function upsertProfile(req: AuthenticatedRequest, res: Response): P
         hipsCm: body.hipsCm,
         shouldersCm: body.shouldersCm,
         skinTone: body.skinTone,
+        hairStyle: body.hairStyle,
+        hairColor: body.hairColor,
+        bodyShape: body.bodyShape,
         preferredStyle: body.preferredStyle ?? 'CASUAL',
       },
     });

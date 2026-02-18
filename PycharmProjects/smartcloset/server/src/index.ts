@@ -10,6 +10,7 @@ import clothingItemRoutes from './routes/clothingItems';
 import profileRoutes from './routes/profile';
 import outfitRoutes from './routes/outfits';
 import wearLogRoutes from './routes/wearLogs';
+import recommendationRoutes from './routes/recommendations';
 import { ensureUploadDirs } from './services/imageService';
 
 dotenv.config();
@@ -58,6 +59,7 @@ app.use('/api/clothing-items', clothingItemRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/outfits', outfitRoutes);
 app.use('/api/wear-logs', wearLogRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // Start server
 app.listen(PORT, () => {

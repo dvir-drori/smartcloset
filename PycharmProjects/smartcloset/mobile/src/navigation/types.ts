@@ -19,6 +19,7 @@ export type ClosetStackParamList = {
 export type OutfitStackParamList = {
   OutfitList: undefined;
   OutfitDetail: { outfitId: string };
+  Recommendations: undefined;
 };
 
 export type AvatarStackParamList = {

@@ -16,6 +16,7 @@ import { OutfitDetailScreen } from '../screens/OutfitDetailScreen';
 import { AvatarScreen } from '../screens/AvatarScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { WearHistoryScreen } from '../screens/WearHistoryScreen';
+import { RecommendationsScreen } from '../screens/RecommendationsScreen';
 import { Colors, FontSize } from '../constants/theme';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -39,6 +40,7 @@ function OutfitNavigator() {
     <OutfitStack.Navigator>
       <OutfitStack.Screen name="OutfitList" component={OutfitsScreen} options={{ title: 'Outfits' }} />
       <OutfitStack.Screen name="OutfitDetail" component={OutfitDetailScreen} options={{ title: 'Outfit Details' }} />
+      <OutfitStack.Screen name="Recommendations" component={RecommendationsScreen} options={{ title: 'Recommendations' }} />
     </OutfitStack.Navigator>
   );
 }

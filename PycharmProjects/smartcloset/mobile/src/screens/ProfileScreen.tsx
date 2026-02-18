@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { useAuthStore } from '../stores/authStore';
+import { BodyProfileCard } from '../components/BodyProfileCard';
 import { UserWithProfile, UserStats, getProfile, upsertProfile, getStats, updateUser } from '../services/profile';
 import type { ProfileStackParamList } from '../navigation/types';
 
@@ -187,6 +188,9 @@ export function ProfileScreen() {
           </View>
         </View>
       )}
+
+      {/* Body Profile Card */}
+      <BodyProfileCard profile={profile?.profile} />
 
       {/* Measurements */}
       <View style={styles.section}>

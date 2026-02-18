@@ -94,6 +94,9 @@ model UserProfile {
   hipsCm         Float?
   shouldersCm    Float?
   skinTone       String?
+  hairStyle      String?
+  hairColor      String?
+  bodyShape      String?
   avatarUrl      String?
   preferredStyle PreferredStyle @default(CASUAL)
   createdAt      DateTime       @default(now())
