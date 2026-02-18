@@ -74,12 +74,20 @@ export async function createClothingItem(params: CreateClothingItemParams): Prom
   return data;
 }
 
-export async function getClothingItems(filters?: { category?: ClothingCategory; favorite?: boolean }): Promise<ClothingItem[]> {
+export async function getClothingItems(filters?: { category?: ClothingCategory; favorite?: boolean; search?: string }): Promise<ClothingItem[]> {
   const params: Record<string, string> = {};
   if (filters?.category) params.category = filters.category;
   if (filters?.favorite) params.favorite = 'true';
+  if (filters?.search) params.search = filters.search;
 
   const { data } = await api.get<ClothingItem[]>('/api/clothing-items', { params });
+  return data;
+}
+
+export async function updateClothingItem(id: string, formData: FormData): Promise<ClothingItem> {
+  const { data } = await api.put<ClothingItem>(`/api/clothing-items/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }
 

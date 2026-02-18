@@ -56,3 +56,8 @@ export async function getStats(): Promise<UserStats> {
   const { data } = await api.get<UserStats>('/api/profile/stats');
   return data;
 }
+
+export async function updateUser(params: { fullName?: string; gender?: string }): Promise<{ id: string; email: string; fullName: string; gender: string }> {
+  const { data } = await api.patch('/api/profile/user', params);
+  return data;
+}

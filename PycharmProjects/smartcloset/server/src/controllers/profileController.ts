@@ -3,7 +3,13 @@ import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth';
 
+const genders = ['MALE', 'FEMALE', 'UNSPECIFIED'] as const;
 const preferredStyles = ['CASUAL', 'FORMAL', 'SPORTY', 'CLASSIC', 'STREETWEAR', 'MINIMALIST'] as const;
+
+export const updateUserSchema = z.object({
+  fullName: z.string().min(1, 'Name is required').optional(),
+  gender: z.enum(genders).optional(),
+});
 
 export const upsertProfileSchema = z.object({
   heightCm: z.number().positive('Height must be positive'),
@@ -78,6 +84,27 @@ export async function upsertProfile(req: AuthenticatedRequest, res: Response): P
   } catch (error) {
     console.error('Upsert profile error:', error);
     res.status(500).json({ error: 'Failed to save profile' });
+  }
+}
+
+export async function updateUser(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.userId;
+    const body = req.body as z.infer<typeof updateUserSchema>;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(body.fullName && { fullName: body.fullName }),
+        ...(body.gender && { gender: body.gender }),
+      },
+      select: { id: true, email: true, fullName: true, gender: true, createdAt: true },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
   }
 }
 

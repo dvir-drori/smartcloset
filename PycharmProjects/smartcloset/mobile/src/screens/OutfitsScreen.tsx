@@ -11,10 +11,14 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { getFullImageUrl } from '../utils/image';
+import type { OutfitStackParamList } from '../navigation/types';
 import { Outfit, getOutfits, createOutfit, deleteOutfit, updateOutfit } from '../services/outfits';
 import { ClothingItem, Occasion, Season, getClothingItems } from '../services/clothingItems';
 import { createWearLog } from '../services/wearLogs';
@@ -30,8 +34,10 @@ const OCCASIONS: { key: Occasion; label: string }[] = [
 const SEASONS: Season[] = ['SPRING', 'SUMMER', 'FALL', 'WINTER'];
 
 export function OutfitsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<OutfitStackParamList>>();
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [closetItems, setClosetItems] = useState<ClothingItem[]>([]);
@@ -52,8 +58,14 @@ export function OutfitsScreen() {
       Alert.alert('Error', 'Failed to load outfits');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [filterOccasion]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchOutfits();
+  };
 
   useEffect(() => {
     fetchOutfits();
@@ -174,6 +186,7 @@ export function OutfitsScreen() {
   const renderOutfit = ({ item: outfit }: { item: Outfit }) => (
     <TouchableOpacity
       style={styles.outfitCard}
+      onPress={() => navigation.navigate('OutfitDetail', { outfitId: outfit.id })}
       onLongPress={() => handleDelete(outfit)}
     >
       <View style={styles.outfitHeader}>
@@ -252,6 +265,9 @@ export function OutfitsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.accent} />
+          }
         />
       )}
 

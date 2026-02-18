@@ -3,3 +3,25 @@ dist/
 *.db
 .env
 .env.local
+
+# Uploads
+uploads/
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

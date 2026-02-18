@@ -8,15 +8,25 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { useAuthStore } from '../stores/authStore';
-import { UserWithProfile, UserStats, getProfile, upsertProfile, getStats } from '../services/profile';
+import { UserWithProfile, UserStats, getProfile, upsertProfile, getStats, updateUser } from '../services/profile';
+import type { ProfileStackParamList } from '../navigation/types';
 
 const PREFERRED_STYLES = ['CASUAL', 'FORMAL', 'SPORTY', 'CLASSIC', 'STREETWEAR', 'MINIMALIST'];
+const GENDERS = [
+  { key: 'MALE', label: 'Male' },
+  { key: 'FEMALE', label: 'Female' },
+  { key: 'UNSPECIFIED', label: 'Prefer not to say' },
+];
 
 export function ProfileScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { user, logout } = useAuthStore();
   const [profile, setProfile] = useState<UserWithProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -32,6 +42,12 @@ export function ProfileScreen() {
   const [hipsCm, setHipsCm] = useState('');
   const [shouldersCm, setShouldersCm] = useState('');
   const [preferredStyle, setPreferredStyle] = useState('CASUAL');
+
+  // User edit modal state
+  const [userEditModal, setUserEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editGender, setEditGender] = useState('UNSPECIFIED');
+  const [savingUser, setSavingUser] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -100,6 +116,29 @@ export function ProfileScreen() {
     ]);
   };
 
+  const openUserEditModal = () => {
+    setEditName(profile?.fullName || '');
+    setEditGender(profile?.gender || 'UNSPECIFIED');
+    setUserEditModal(true);
+  };
+
+  const handleSaveUser = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+    setSavingUser(true);
+    try {
+      await updateUser({ fullName: editName.trim(), gender: editGender });
+      setUserEditModal(false);
+      fetchData();
+    } catch {
+      Alert.alert('Error', 'Failed to update profile');
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -112,6 +151,9 @@ export function ProfileScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* User Info */}
       <View style={styles.userCard}>
+        <TouchableOpacity style={styles.editUserBtn} onPress={openUserEditModal}>
+          <Ionicons name="create-outline" size={18} color={Colors.accent} />
+        </TouchableOpacity>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarLetter}>
             {profile?.fullName?.charAt(0).toUpperCase() || '?'}
@@ -119,6 +161,9 @@ export function ProfileScreen() {
         </View>
         <Text style={styles.userName}>{profile?.fullName}</Text>
         <Text style={styles.userEmail}>{profile?.email}</Text>
+        <Text style={styles.userGender}>
+          {profile?.gender === 'MALE' ? 'Male' : profile?.gender === 'FEMALE' ? 'Female' : ''}
+        </Text>
       </View>
 
       {/* Stats */}
@@ -314,6 +359,18 @@ export function ProfileScreen() {
         )}
       </View>
 
+      {/* Wear History */}
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => navigation.navigate('WearHistory')}
+      >
+        <View style={styles.menuItemLeft}>
+          <Ionicons name="time-outline" size={22} color={Colors.accent} />
+          <Text style={styles.menuItemText}>Wear History</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+      </TouchableOpacity>
+
       {/* Logout */}
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color={Colors.error} />
@@ -321,6 +378,47 @@ export function ProfileScreen() {
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
+
+      {/* User Edit Modal */}
+      <Modal visible={userEditModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setUserEditModal(false)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity onPress={handleSaveUser} disabled={savingUser}>
+              <Text style={[styles.modalSaveText, savingUser && { opacity: 0.5 }]}>
+                {savingUser ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.fieldLabel}>Full Name</Text>
+          <TextInput
+            style={styles.textInput}
+            value={editName}
+            onChangeText={setEditName}
+            placeholder="Your name"
+            placeholderTextColor={Colors.textSecondary}
+          />
+
+          <Text style={styles.fieldLabel}>Gender</Text>
+          <View style={styles.chipRow}>
+            {GENDERS.map((g) => (
+              <TouchableOpacity
+                key={g.key}
+                style={[styles.chip, editGender === g.key && styles.chipActive]}
+                onPress={() => setEditGender(g.key)}
+              >
+                <Text style={[styles.chipText, editGender === g.key && styles.chipTextActive]}>
+                  {g.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -366,6 +464,17 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     marginTop: 4,
+  },
+  userGender: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  editUserBtn: {
+    position: 'absolute',
+    top: Spacing.xl,
+    right: 0,
+    padding: Spacing.sm,
   },
   statsRow: {
     flexDirection: 'row',
@@ -529,5 +638,50 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.error,
     fontWeight: FontWeight.medium,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.card,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  menuItemText: {
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+    fontWeight: FontWeight.medium,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    padding: Spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    paddingTop: Spacing.lg,
+  },
+  modalTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.textPrimary,
+  },
+  modalCancelText: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+  },
+  modalSaveText: {
+    fontSize: FontSize.md,
+    color: Colors.accent,
+    fontWeight: FontWeight.semibold,
   },
 });

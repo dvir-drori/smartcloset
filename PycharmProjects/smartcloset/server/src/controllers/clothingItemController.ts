@@ -95,10 +95,19 @@ export async function getClothingItems(req: AuthenticatedRequest, res: Response)
     const userId = req.user!.userId;
     const category = req.query.category as string | undefined;
     const favorite = req.query.favorite as string | undefined;
+    const search = req.query.search as string | undefined;
 
     const where: Record<string, unknown> = { userId };
     if (category) where.category = category;
     if (favorite === 'true') where.isFavorite = true;
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { brand: { contains: search } },
+        { color: { contains: search } },
+        { subcategory: { contains: search } },
+      ];
+    }
 
     const items = await prisma.clothingItem.findMany({
       where,

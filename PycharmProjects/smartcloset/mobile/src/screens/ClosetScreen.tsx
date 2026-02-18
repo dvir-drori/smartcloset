@@ -11,11 +11,15 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { getFullImageUrl } from '../utils/image';
+import type { ClosetStackParamList } from '../navigation/types';
 import {
   ClothingItem,
   ClothingCategory,
@@ -53,8 +57,11 @@ const SEASONS: Season[] = ['SPRING', 'SUMMER', 'FALL', 'WINTER'];
 const OCCASIONS: Occasion[] = ['CASUAL', 'WORK', 'FORMAL', 'SPORT', 'GOING_OUT'];
 
 export function ClosetScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ClosetStackParamList>>();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ClothingCategory | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -78,14 +85,21 @@ export function ClosetScreen() {
       const data = await getClothingItems({
         category: selectedCategory ?? undefined,
         favorite: showFavorites || undefined,
+        search: searchQuery.trim() || undefined,
       });
       setItems(data);
     } catch {
       Alert.alert('Error', 'Failed to load clothing items');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [selectedCategory, showFavorites]);
+  }, [selectedCategory, showFavorites, searchQuery]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchItems();
+  };
 
   useEffect(() => {
     fetchItems();
@@ -200,7 +214,11 @@ export function ClosetScreen() {
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
   const renderItem = ({ item }: { item: ClothingItem }) => (
-    <TouchableOpacity style={styles.itemCard} onLongPress={() => handleDelete(item)}>
+    <TouchableOpacity
+      style={styles.itemCard}
+      onPress={() => navigation.navigate('ClothingItemDetail', { itemId: item.id })}
+      onLongPress={() => handleDelete(item)}
+    >
       <Image
         source={{ uri: getFullImageUrl(item.thumbnailUrl || item.imageUrl) }}
         style={styles.itemImage}
@@ -222,6 +240,24 @@ export function ClosetScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Search Bar */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={18} color={Colors.textSecondary} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search items..."
+          placeholderTextColor={Colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Category Filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
         <TouchableOpacity
@@ -267,6 +303,9 @@ export function ClosetScreen() {
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.accent} />
+          }
         />
       )}
 
@@ -452,6 +491,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.button,
+    gap: Spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    color: Colors.textPrimary,
+    paddingVertical: 0,
   },
   filterBar: {
     maxHeight: 52,
