@@ -28,6 +28,7 @@ import {
   getProfile,
   upsertProfile,
 } from '../services/profile';
+import { TryOnResult, getTryOnResults } from '../services/tryon';
 
 type Angle = 'FRONT' | 'SIDE' | 'BACK';
 
@@ -89,6 +90,7 @@ export function AvatarScreen() {
   const [previewUri, setPreviewUri] = useState('');
   const [previewAngle, setPreviewAngle] = useState<Angle>('FRONT');
   const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
+  const [tryOnResults, setTryOnResults] = useState<TryOnResult[]>([]);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -115,10 +117,20 @@ export function AvatarScreen() {
     }
   }, []);
 
+  const fetchTryOnResults = useCallback(async () => {
+    try {
+      const data = await getTryOnResults();
+      setTryOnResults(data);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
   useEffect(() => {
     fetchProfile();
     fetchPhotos();
-  }, [fetchProfile, fetchPhotos]);
+    fetchTryOnResults();
+  }, [fetchProfile, fetchPhotos, fetchTryOnResults]);
 
   const saveAvatarField = async (updates: Partial<{ skinTone: string; hairStyle: HairStyle; hairColor: HairColor; bodyShape: BodyShape }>) => {
     if (!profile) return;
@@ -220,7 +232,7 @@ export function AvatarScreen() {
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       {/* Section 1: Body Profile Card */}
-      <BodyProfileCard profile={profile} />
+      <BodyProfileCard profile={profile} frontPhotoUrl={photos.FRONT?.imageUrl} />
 
       {/* Section 2: Avatar Customization */}
       {profile ? (
@@ -302,7 +314,31 @@ export function AvatarScreen() {
         </View>
       )}
 
-      {/* Section 3: Body Photos */}
+      {/* Section 3: Recent Try-Ons */}
+      {tryOnResults.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent Try-Ons</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.tryOnRow}>
+              {tryOnResults.map((result) => (
+                <View key={result.id} style={styles.tryOnThumb}>
+                  <Image
+                    source={{ uri: getFullImageUrl(result.resultImageUrl) }}
+                    style={styles.tryOnImage}
+                  />
+                  {result.clothingItem && (
+                    <Text style={styles.tryOnLabel} numberOfLines={1}>
+                      {result.clothingItem.name}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Section 4: Body Photos */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Body Photos</Text>
         <Text style={styles.sectionSubtitle}>
@@ -487,6 +523,26 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
     color: Colors.textPrimary,
+  },
+  tryOnRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  tryOnThumb: {
+    alignItems: 'center',
+    width: 100,
+  },
+  tryOnImage: {
+    width: 100,
+    height: 133,
+    borderRadius: BorderRadius.card,
+    backgroundColor: Colors.border,
+  },
+  tryOnLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
   loadingOverlay: {
     position: 'absolute',

@@ -19,6 +19,8 @@ import {
   getRecommendations,
   saveRecommendation,
 } from '../services/recommendations';
+import { TryOnModal } from '../components/TryOnModal';
+import { checkTryOnResult } from '../services/tryon';
 
 const OCCASIONS: { key: Occasion; label: string }[] = [
   { key: 'CASUAL', label: 'Casual' },
@@ -43,6 +45,9 @@ export function RecommendationsScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
+  const [tryOnVisible, setTryOnVisible] = useState(false);
+  const [tryOnItemId, setTryOnItemId] = useState('');
+  const [tryOnItemName, setTryOnItemName] = useState('');
 
   const handleGetSuggestions = async () => {
     setLoading(true);
@@ -86,6 +91,26 @@ export function RecommendationsScreen() {
     }
   };
 
+  const handleSeeOnMe = async (rec: Recommendation) => {
+    // Pick the TOP item for most visual impact, fallback to first item
+    const topItem = rec.items.find((i) => i.category === 'TOP') || rec.items[0];
+    if (!topItem) return;
+
+    try {
+      const check = await checkTryOnResult(topItem.id);
+      if (!check.hasBodyPhoto) {
+        Alert.alert('Body Photo Required', 'Upload a front body photo in the Avatar tab first.');
+        return;
+      }
+    } catch {
+      // proceed anyway
+    }
+
+    setTryOnItemId(topItem.id);
+    setTryOnItemName(topItem.name);
+    setTryOnVisible(true);
+  };
+
   const renderRecommendation = ({ item: rec }: { item: Recommendation }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -118,17 +143,26 @@ export function RecommendationsScreen() {
         ))}
       </View>
 
-      {/* Save button */}
-      <TouchableOpacity
-        style={[styles.saveBtn, saving === rec.suggestedName && { opacity: 0.5 }]}
-        onPress={() => handleSave(rec)}
-        disabled={saving === rec.suggestedName}
-      >
-        <Ionicons name="bookmark-outline" size={18} color="#fff" />
-        <Text style={styles.saveBtnText}>
-          {saving === rec.suggestedName ? 'Saving...' : 'Save as Outfit'}
-        </Text>
-      </TouchableOpacity>
+      {/* Action buttons */}
+      <View style={styles.cardActions}>
+        <TouchableOpacity
+          style={[styles.saveBtn, saving === rec.suggestedName && { opacity: 0.5 }]}
+          onPress={() => handleSave(rec)}
+          disabled={saving === rec.suggestedName}
+        >
+          <Ionicons name="bookmark-outline" size={18} color="#fff" />
+          <Text style={styles.saveBtnText}>
+            {saving === rec.suggestedName ? 'Saving...' : 'Save as Outfit'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.seeOnMeBtn}
+          onPress={() => handleSeeOnMe(rec)}
+        >
+          <Ionicons name="body-outline" size={18} color="#fff" />
+          <Text style={styles.seeOnMeBtnText}>See on Me</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -229,6 +263,13 @@ export function RecommendationsScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <TryOnModal
+        visible={tryOnVisible}
+        clothingItemId={tryOnItemId}
+        itemName={tryOnItemName}
+        onClose={() => setTryOnVisible(false)}
+      />
     </View>
   );
 }
@@ -378,7 +419,12 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.textPrimary,
   },
+  cardActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
   saveBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -388,6 +434,21 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.button,
   },
   saveBtnText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    color: '#fff',
+  },
+  seeOnMeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.success,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.button,
+  },
+  seeOnMeBtnText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
     color: '#fff',

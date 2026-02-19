@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth';
 import { createThumbnail, getImageUrl, deleteImage } from '../services/imageService';
+import { invalidateTryOnForBodyPhoto } from './tryonController';
 
 export const angleSchema = z.object({
   angle: z.enum(['FRONT', 'SIDE', 'BACK']),
@@ -36,6 +37,11 @@ export async function uploadBodyPhoto(req: AuthenticatedRequest, res: Response):
     // Delete old file only after DB write succeeds
     if (existing && existing.imageUrl !== imageUrl) {
       deleteImage(existing.imageUrl);
+    }
+
+    // Invalidate try-on cache when FRONT photo changes
+    if (angle === 'FRONT' && existing) {
+      await invalidateTryOnForBodyPhoto(existing.id);
     }
 
     res.status(201).json({ ...photo, thumbnailUrl });

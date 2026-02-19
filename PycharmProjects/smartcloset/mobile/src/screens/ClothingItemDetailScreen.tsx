@@ -27,8 +27,12 @@ import {
 } from '../services/clothingItems';
 import { updateClothingItem } from '../services/clothingItems';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
+import { TryOnModal } from '../components/TryOnModal';
 import type { ClosetStackScreenProps } from '../navigation/types';
 import api from '../services/api';
+import { checkTryOnResult } from '../services/tryon';
+
+const TRYONABLE_CATEGORIES: ClothingCategory[] = ['TOP', 'BOTTOM', 'OUTERWEAR', 'FORMAL'];
 
 const CATEGORIES: { key: ClothingCategory; label: string }[] = [
   { key: 'TOP', label: 'Tops' },
@@ -76,6 +80,7 @@ export function ClothingItemDetailScreen({ route, navigation }: Props) {
   const [editImageUri, setEditImageUri] = useState('');
   const [previewUri, setPreviewUri] = useState('');
   const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
+  const [tryOnVisible, setTryOnVisible] = useState(false);
 
   const fetchItem = useCallback(async () => {
     try {
@@ -206,6 +211,20 @@ export function ClothingItemDetailScreen({ route, navigation }: Props) {
   const toggleArrayItem = <T extends string>(arr: T[], val: T): T[] =>
     arr.includes(val) ? arr.filter((i) => i !== val) : [...arr, val];
 
+  const handleTryOn = async () => {
+    if (!item) return;
+    try {
+      const check = await checkTryOnResult(item.id);
+      if (!check.hasBodyPhoto) {
+        Alert.alert('Body Photo Required', 'Upload a front body photo in the Avatar tab first.');
+        return;
+      }
+      setTryOnVisible(true);
+    } catch {
+      setTryOnVisible(true);
+    }
+  };
+
   if (loading || !item) {
     return (
       <View style={styles.centered}>
@@ -283,6 +302,12 @@ export function ClothingItemDetailScreen({ route, navigation }: Props) {
 
       {/* Bottom Action Bar */}
       <View style={styles.bottomBar}>
+        {TRYONABLE_CATEGORIES.includes(item.category) && (
+          <TouchableOpacity style={styles.tryOnBtn} onPress={handleTryOn}>
+            <Ionicons name="body-outline" size={20} color="#fff" />
+            <Text style={styles.tryOnBtnText}>Try On</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.editBtn} onPress={openEditModal}>
           <Ionicons name="create-outline" size={20} color="#fff" />
           <Text style={styles.editBtnText}>Edit</Text>
@@ -292,6 +317,14 @@ export function ClothingItemDetailScreen({ route, navigation }: Props) {
           <Text style={styles.deleteBtnText}>Delete</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Try-On Modal */}
+      <TryOnModal
+        visible={tryOnVisible}
+        clothingItemId={itemId}
+        itemName={item.name}
+        onClose={() => setTryOnVisible(false)}
+      />
 
       {/* Photo Preview */}
       <PhotoPreviewModal
@@ -465,6 +498,8 @@ const styles = StyleSheet.create({
   tagText: { fontSize: FontSize.xs, color: Colors.textSecondary },
   dateText: { fontSize: FontSize.xs, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.lg, paddingBottom: Spacing.lg },
   bottomBar: { flexDirection: 'row', gap: Spacing.md, padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.background },
+  tryOnBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.success, paddingVertical: 12, borderRadius: BorderRadius.button },
+  tryOnBtnText: { color: '#fff', fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   editBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.accent, paddingVertical: 12, borderRadius: BorderRadius.button },
   editBtnText: { color: '#fff', fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   deleteBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.surface, paddingVertical: 12, borderRadius: BorderRadius.button, borderWidth: 1, borderColor: Colors.border },

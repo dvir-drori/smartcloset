@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth';
 import { createThumbnail, getImageUrl, deleteImage } from '../services/imageService';
+import { invalidateTryOnForClothingItem } from './tryonController';
 
 const clothingCategories = ['TOP', 'BOTTOM', 'OUTERWEAR', 'SHOES', 'ACCESSORY', 'UNDERWEAR', 'SWIMWEAR', 'FORMAL'] as const;
 const patterns = ['SOLID', 'STRIPED', 'PLAID', 'FLORAL', 'PRINTED', 'OTHER'] as const;
@@ -190,6 +191,7 @@ export async function updateClothingItem(req: AuthenticatedRequest, res: Respons
       data.imageUrl = imageUrl;
       data.thumbnailUrl = thumbnailUrl;
       deleteImage(existing.imageUrl);
+      await invalidateTryOnForClothingItem(id);
     }
 
     const item = await prisma.clothingItem.update({

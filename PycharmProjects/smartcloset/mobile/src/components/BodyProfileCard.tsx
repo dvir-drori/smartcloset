@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { UserProfile } from '../services/profile';
+import { getFullImageUrl } from '../utils/image';
 
 interface Props {
   profile: UserProfile | null | undefined;
+  frontPhotoUrl?: string;
 }
 
 // Map skin tone names to approximate colors
@@ -23,7 +25,7 @@ function getSkinColor(skinTone?: string): string {
   return SKIN_TONE_COLORS[skinTone.toLowerCase()] || '#D4A574';
 }
 
-export function BodyProfileCard({ profile }: Props) {
+export function BodyProfileCard({ profile, frontPhotoUrl }: Props) {
   if (!profile) {
     return (
       <View style={styles.card}>
@@ -45,50 +47,50 @@ export function BodyProfileCard({ profile }: Props) {
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Body Profile</Text>
       <View style={styles.bodyContainer}>
-        {/* Silhouette */}
-        <View style={styles.silhouette}>
-          {/* Head */}
-          <View style={[styles.head, { backgroundColor: skinColor }]} />
-          {/* Neck */}
-          <View style={[styles.neck, { backgroundColor: skinColor }]} />
-          {/* Shoulders */}
-          <View
-            style={[
-              styles.shoulders,
-              { backgroundColor: skinColor },
-              profile.shouldersCm != null ? { width: Math.min(100, Math.max(60, profile.shouldersCm * 1.5)) } : undefined,
-            ]}
+        {frontPhotoUrl ? (
+          <Image
+            source={{ uri: getFullImageUrl(frontPhotoUrl) }}
+            style={styles.bodyPhoto}
+            resizeMode="cover"
           />
-          {/* Torso */}
-          <View
-            style={[
-              styles.torso,
-              { backgroundColor: skinColor },
-              profile.chestCm != null ? { width: Math.min(90, Math.max(50, profile.chestCm * 1.2)) } : undefined,
-            ]}
-          />
-          {/* Waist */}
-          <View
-            style={[
-              styles.waist,
-              { backgroundColor: skinColor },
-              profile.waistCm != null ? { width: Math.min(85, Math.max(40, profile.waistCm * 1.1)) } : undefined,
-            ]}
-          />
-          {/* Hips */}
-          <View
-            style={[
-              styles.hips,
-              { backgroundColor: skinColor },
-              profile.hipsCm != null ? { width: Math.min(95, Math.max(50, profile.hipsCm * 1.2)) } : undefined,
-            ]}
-          />
-          {/* Legs */}
-          <View style={styles.legRow}>
-            <View style={[styles.leg, { backgroundColor: skinColor }]} />
-            <View style={[styles.leg, { backgroundColor: skinColor }]} />
+        ) : (
+          <View style={styles.silhouette}>
+            <View style={[styles.head, { backgroundColor: skinColor }]} />
+            <View style={[styles.neck, { backgroundColor: skinColor }]} />
+            <View
+              style={[
+                styles.shoulders,
+                { backgroundColor: skinColor },
+                profile.shouldersCm != null ? { width: Math.min(100, Math.max(60, profile.shouldersCm * 1.5)) } : undefined,
+              ]}
+            />
+            <View
+              style={[
+                styles.torso,
+                { backgroundColor: skinColor },
+                profile.chestCm != null ? { width: Math.min(90, Math.max(50, profile.chestCm * 1.2)) } : undefined,
+              ]}
+            />
+            <View
+              style={[
+                styles.waist,
+                { backgroundColor: skinColor },
+                profile.waistCm != null ? { width: Math.min(85, Math.max(40, profile.waistCm * 1.1)) } : undefined,
+              ]}
+            />
+            <View
+              style={[
+                styles.hips,
+                { backgroundColor: skinColor },
+                profile.hipsCm != null ? { width: Math.min(95, Math.max(50, profile.hipsCm * 1.2)) } : undefined,
+              ]}
+            />
+            <View style={styles.legRow}>
+              <View style={[styles.leg, { backgroundColor: skinColor }]} />
+              <View style={[styles.leg, { backgroundColor: skinColor }]} />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Measurement labels */}
         <View style={styles.labels}>
@@ -165,6 +167,12 @@ const styles = StyleSheet.create({
   bodyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  bodyPhoto: {
+    width: 110,
+    height: 165,
+    borderRadius: BorderRadius.card,
+    marginRight: Spacing.xl,
   },
   silhouette: {
     alignItems: 'center',

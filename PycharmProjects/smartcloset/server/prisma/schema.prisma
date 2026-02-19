@@ -82,6 +82,7 @@ model User {
   outfits      Outfit[]
   wearLogs     WearLog[]
   refreshTokens RefreshToken[]
+  tryOnResults TryOnResult[]
 }
 
 model UserProfile {
@@ -113,6 +114,7 @@ model BodyPhoto {
   createdAt DateTime   @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tryOnResults TryOnResult[]
 
   @@unique([userId, angle])
   @@index([userId])
@@ -142,6 +144,7 @@ model ClothingItem {
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   outfits Outfit[] @relation("OutfitItems")
+  tryOnResults TryOnResult[]
 
   @@index([userId])
   @@index([category])
@@ -194,4 +197,20 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+}
+
+model TryOnResult {
+  id             String   @id @default(uuid())
+  userId         String
+  bodyPhotoId    String
+  clothingItemId String
+  resultImageUrl String
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bodyPhoto    BodyPhoto    @relation(fields: [bodyPhotoId], references: [id], onDelete: Cascade)
+  clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+
+  @@unique([bodyPhotoId, clothingItemId])
+  @@index([userId])
 }
