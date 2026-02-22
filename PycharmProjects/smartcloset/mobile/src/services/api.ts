@@ -3,9 +3,15 @@ import { getAccessToken, getRefreshToken, setAccessToken, setRefreshToken, clear
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
+// Auth failure callback - set by authStore to trigger logout
+let onAuthFailure: (() => void) | null = null;
+export function setOnAuthFailure(callback: () => void): void {
+  onAuthFailure = callback;
+}
+
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -70,6 +76,7 @@ api.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null);
       await clearTokens();
+      onAuthFailure?.();
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

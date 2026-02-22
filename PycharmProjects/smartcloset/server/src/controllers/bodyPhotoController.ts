@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth';
-import { createThumbnail, getImageUrl, deleteImage } from '../services/imageService';
+import { createThumbnail, getImageUrl, deleteImage, optimizeUploadedImage } from '../services/imageService';
 import { invalidateTryOnForBodyPhoto } from './tryonController';
 
 export const angleSchema = z.object({
@@ -20,6 +20,7 @@ export async function uploadBodyPhoto(req: AuthenticatedRequest, res: Response):
       return;
     }
 
+    await optimizeUploadedImage(file.filename);
     const imageUrl = getImageUrl(file.filename);
     const thumbnailUrl = await createThumbnail(file.filename);
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User, registerUser, loginUser, logoutUser, getMe, RegisterParams, LoginParams } from '../services/auth';
 import { setAccessToken, setRefreshToken, getAccessToken, getRefreshToken, clearTokens } from '../services/tokenStorage';
+import { setOnAuthFailure } from '../services/api';
 
 interface AuthState {
   user: User | null;
@@ -80,3 +81,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearError: () => set({ error: null }),
 }));
+
+// Register auth failure handler so API interceptor can trigger logout
+setOnAuthFailure(() => {
+  useAuthStore.getState().logout();
+});

@@ -13,6 +13,7 @@ import wearLogRoutes from './routes/wearLogs';
 import recommendationRoutes from './routes/recommendations';
 import tryonRoutes from './routes/tryon';
 import { ensureUploadDirs } from './services/imageService';
+import prisma from './utils/prisma';
 
 dotenv.config();
 
@@ -32,7 +33,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -63,9 +64,33 @@ app.use('/api/wear-logs', wearLogRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/tryon', tryonRoutes);
 
+// Global error handler — catches unhandled errors from async routes
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Clean up expired refresh tokens periodically
+async function cleanupExpiredTokens() {
+  try {
+    const { count } = await prisma.refreshToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    if (count > 0) {
+      console.log(`Cleaned up ${count} expired refresh tokens`);
+    }
+  } catch (err) {
+    console.error('Token cleanup error:', err);
+  }
+}
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+
+  // Run cleanup on startup and every hour
+  cleanupExpiredTokens();
+  setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 });
 
 export default app;

@@ -14,7 +14,11 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constant
 import { getFullImageUrl } from '../utils/image';
 import { Outfit, getOutfit, deleteOutfit, updateOutfit } from '../services/outfits';
 import { createWearLog } from '../services/wearLogs';
+import { TryOnModal } from '../components/TryOnModal';
+import { checkTryOnResult } from '../services/tryon';
 import type { OutfitStackScreenProps } from '../navigation/types';
+
+const TRYONABLE_CATEGORIES = ['TOP', 'BOTTOM', 'OUTERWEAR', 'FORMAL'];
 
 type Props = OutfitStackScreenProps<'OutfitDetail'>;
 
@@ -22,6 +26,9 @@ export function OutfitDetailScreen({ route, navigation }: Props) {
   const { outfitId } = route.params;
   const [outfit, setOutfit] = useState<Outfit | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tryOnVisible, setTryOnVisible] = useState(false);
+  const [tryOnItemId, setTryOnItemId] = useState('');
+  const [tryOnItemName, setTryOnItemName] = useState('');
 
   const fetchOutfit = useCallback(async () => {
     try {
@@ -92,6 +99,33 @@ export function OutfitDetailScreen({ route, navigation }: Props) {
     ]);
   };
 
+  const handleTryOnItem = async (itemId: string, itemName: string) => {
+    try {
+      const check = await checkTryOnResult(itemId);
+      if (!check.hasBodyPhoto) {
+        Alert.alert('Body Photo Required', 'Upload a front body photo in the Avatar tab first.');
+        return;
+      }
+    } catch {
+      // proceed anyway
+    }
+    setTryOnItemId(itemId);
+    setTryOnItemName(itemName);
+    setTryOnVisible(true);
+  };
+
+  const handleTryOnOutfit = async () => {
+    if (!outfit) return;
+    // Pick the TOP item for try-on, fallback to first tryonable item
+    const tryOnItem = outfit.items.find((i) => i.category === 'TOP')
+      || outfit.items.find((i) => TRYONABLE_CATEGORIES.includes(i.category));
+    if (!tryOnItem) {
+      Alert.alert('Not Available', 'No tryonable items in this outfit (need a top, bottom, or outerwear).');
+      return;
+    }
+    handleTryOnItem(tryOnItem.id, tryOnItem.name);
+  };
+
   if (loading || !outfit) {
     return (
       <View style={styles.centered}>
@@ -99,6 +133,8 @@ export function OutfitDetailScreen({ route, navigation }: Props) {
       </View>
     );
   }
+
+  const hasTryOnItems = outfit.items.some((i) => TRYONABLE_CATEGORIES.includes(i.category));
 
   return (
     <View style={styles.container}>
@@ -138,7 +174,16 @@ export function OutfitDetailScreen({ route, navigation }: Props) {
         {/* Items */}
         <Text style={styles.sectionTitle}>Items ({outfit.items.length})</Text>
         {outfit.items.map((item) => (
-          <View key={item.id} style={styles.itemCard}>
+          <TouchableOpacity
+            key={item.id}
+            style={styles.itemCard}
+            onPress={() => {
+              if (TRYONABLE_CATEGORIES.includes(item.category)) {
+                handleTryOnItem(item.id, item.name);
+              }
+            }}
+            activeOpacity={TRYONABLE_CATEGORIES.includes(item.category) ? 0.7 : 1}
+          >
             <Image
               source={{ uri: getFullImageUrl(item.thumbnailUrl || item.imageUrl) }}
               style={styles.itemImage}
@@ -148,7 +193,12 @@ export function OutfitDetailScreen({ route, navigation }: Props) {
               <Text style={styles.itemMeta}>{item.subcategory} &middot; {item.color}</Text>
               {item.brand && <Text style={styles.itemBrand}>{item.brand}</Text>}
             </View>
-          </View>
+            {TRYONABLE_CATEGORIES.includes(item.category) && (
+              <View style={styles.tryOnBadge}>
+                <Ionicons name="body-outline" size={14} color={Colors.success} />
+              </View>
+            )}
+          </TouchableOpacity>
         ))}
 
         {/* Info */}
@@ -167,6 +217,12 @@ export function OutfitDetailScreen({ route, navigation }: Props) {
 
       {/* Bottom Action Bar */}
       <View style={styles.bottomBar}>
+        {hasTryOnItems && (
+          <TouchableOpacity style={styles.tryOnOutfitBtn} onPress={handleTryOnOutfit}>
+            <Ionicons name="body-outline" size={20} color="#fff" />
+            <Text style={styles.tryOnOutfitBtnText}>Try On</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.wearBtn} onPress={handleWearToday}>
           <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
           <Text style={styles.wearBtnText}>Wear Today</Text>
@@ -178,6 +234,14 @@ export function OutfitDetailScreen({ route, navigation }: Props) {
           <Ionicons name="trash-outline" size={20} color={Colors.error} />
         </TouchableOpacity>
       </View>
+
+      {/* Try-On Modal */}
+      <TryOnModal
+        visible={tryOnVisible}
+        clothingItemId={tryOnItemId}
+        itemName={tryOnItemName}
+        onClose={() => setTryOnVisible(false)}
+      />
     </View>
   );
 }
@@ -205,11 +269,14 @@ const styles = StyleSheet.create({
   itemName: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: Colors.textPrimary },
   itemMeta: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
   itemBrand: { fontSize: FontSize.xs, color: Colors.accent, marginTop: 2 },
+  tryOnBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: 12, backgroundColor: Colors.background },
   infoSection: { marginTop: Spacing.xl, alignItems: 'center' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
   infoText: { fontSize: FontSize.sm, color: Colors.accent },
   dateText: { fontSize: FontSize.xs, color: Colors.textSecondary },
   bottomBar: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.background },
+  tryOnOutfitBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.accent, paddingVertical: 12, borderRadius: BorderRadius.button },
+  tryOnOutfitBtnText: { color: '#fff', fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   wearBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.success, paddingVertical: 12, borderRadius: BorderRadius.button },
   wearBtnText: { color: '#fff', fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   rateBtn: { paddingHorizontal: Spacing.lg, paddingVertical: 12, borderRadius: BorderRadius.button, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, justifyContent: 'center' },

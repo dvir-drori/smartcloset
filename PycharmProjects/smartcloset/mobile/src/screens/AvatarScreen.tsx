@@ -8,8 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import { BodyProfileCard } from '../components/BodyProfileCard';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
@@ -91,6 +93,7 @@ export function AvatarScreen() {
   const [previewAngle, setPreviewAngle] = useState<Angle>('FRONT');
   const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
   const [tryOnResults, setTryOnResults] = useState<TryOnResult[]>([]);
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -314,14 +317,25 @@ export function AvatarScreen() {
         </View>
       )}
 
-      {/* Section 3: Recent Try-Ons */}
-      {tryOnResults.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Try-Ons</Text>
+      {/* Section 3: Try-On Gallery */}
+      <View style={styles.section}>
+        <View style={styles.galleryHeader}>
+          <Text style={styles.sectionTitle}>Try-On Gallery</Text>
+          {tryOnResults.length > 0 && (
+            <Text style={styles.galleryCount}>{tryOnResults.length} results</Text>
+          )}
+        </View>
+        {tryOnResults.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.tryOnRow}>
               {tryOnResults.map((result) => (
-                <View key={result.id} style={styles.tryOnThumb}>
+                <TouchableOpacity
+                  key={result.id}
+                  style={styles.tryOnThumb}
+                  onPress={() => {
+                    setSelectedGalleryImage(result.resultImageUrl);
+                  }}
+                >
                   <Image
                     source={{ uri: getFullImageUrl(result.resultImageUrl) }}
                     style={styles.tryOnImage}
@@ -331,11 +345,41 @@ export function AvatarScreen() {
                       {result.clothingItem.name}
                     </Text>
                   )}
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           </ScrollView>
-        </View>
+        ) : (
+          <View style={styles.galleryEmpty}>
+            <Ionicons name="body-outline" size={32} color={Colors.border} />
+            <Text style={styles.galleryEmptyText}>
+              Try on clothes from your closet to see results here
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Full-screen gallery image viewer */}
+      {selectedGalleryImage && (
+        <Modal visible animationType="fade" transparent>
+          <TouchableOpacity
+            style={styles.galleryOverlay}
+            activeOpacity={1}
+            onPress={() => setSelectedGalleryImage(null)}
+          >
+            <Image
+              source={{ uri: getFullImageUrl(selectedGalleryImage) }}
+              style={styles.galleryFullImage}
+              resizeMode="contain"
+            />
+            <TouchableOpacity
+              style={styles.galleryCloseBtn}
+              onPress={() => setSelectedGalleryImage(null)}
+            >
+              <Ionicons name="close-circle" size={36} color="#fff" />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
       )}
 
       {/* Section 4: Body Photos */}
@@ -524,6 +568,26 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
     color: Colors.textPrimary,
   },
+  galleryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  galleryCount: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+  },
+  galleryEmpty: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  galleryEmptyText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
   tryOnRow: {
     flexDirection: 'row',
     gap: Spacing.md,
@@ -543,6 +607,21 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
     textAlign: 'center',
+  },
+  galleryOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryFullImage: {
+    width: '90%',
+    height: '80%',
+  },
+  galleryCloseBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
   },
   loadingOverlay: {
     position: 'absolute',

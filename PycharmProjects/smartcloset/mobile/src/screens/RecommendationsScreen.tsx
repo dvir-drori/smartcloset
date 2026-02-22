@@ -37,9 +37,17 @@ const SEASONS: { key: Season; label: string }[] = [
   { key: 'WINTER', label: 'Winter' },
 ];
 
+function getCurrentSeason(): Season {
+  const month = new Date().getMonth(); // 0-11
+  if (month >= 2 && month <= 4) return 'SPRING';
+  if (month >= 5 && month <= 7) return 'SUMMER';
+  if (month >= 8 && month <= 10) return 'FALL';
+  return 'WINTER';
+}
+
 export function RecommendationsScreen() {
   const [selectedOccasion, setSelectedOccasion] = useState<Occasion | null>(null);
-  const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<Season | null>(getCurrentSeason());
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -115,8 +123,8 @@ export function RecommendationsScreen() {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{rec.suggestedName}</Text>
-        <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>{rec.score} pts</Text>
+        <View style={[styles.scoreBadge, rec.score >= 70 ? styles.scoreBadgeHigh : rec.score >= 40 ? styles.scoreBadgeMed : null]}>
+          <Text style={styles.scoreText}>{rec.score}%</Text>
         </View>
       </View>
 
@@ -374,6 +382,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
     marginLeft: Spacing.sm,
+  },
+  scoreBadgeHigh: {
+    backgroundColor: Colors.success,
+  },
+  scoreBadgeMed: {
+    backgroundColor: Colors.warning,
   },
   scoreText: {
     fontSize: FontSize.xs,

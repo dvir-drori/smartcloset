@@ -58,7 +58,7 @@ export async function generateTryOnResult(req: AuthenticatedRequest, res: Respon
     });
 
     if (cached) {
-      res.json(cached);
+      res.json({ ...cached, fromCache: true });
       return;
     }
 
@@ -82,6 +82,92 @@ export async function generateTryOnResult(req: AuthenticatedRequest, res: Respon
   } catch (error) {
     console.error('Generate try-on error:', error);
     res.status(500).json({ error: 'Failed to generate try-on. Please try again.' });
+  }
+}
+
+// SSE endpoint for try-on with real-time progress updates
+export async function generateTryOnStream(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const clothingItemId = req.query.clothingItemId as string;
+
+  if (!clothingItemId) {
+    res.status(400).json({ error: 'clothingItemId is required' });
+    return;
+  }
+
+  // Validate inputs before starting SSE
+  const bodyPhoto = await prisma.bodyPhoto.findUnique({
+    where: { userId_angle: { userId, angle: 'FRONT' } },
+  });
+
+  if (!bodyPhoto) {
+    res.status(400).json({ error: 'Upload a front body photo first' });
+    return;
+  }
+
+  const clothingItem = await prisma.clothingItem.findUnique({
+    where: { id: clothingItemId },
+  });
+
+  if (!clothingItem || clothingItem.userId !== userId) {
+    res.status(404).json({ error: 'Clothing item not found' });
+    return;
+  }
+
+  // Check cache first
+  const cached = await prisma.tryOnResult.findUnique({
+    where: {
+      bodyPhotoId_clothingItemId: {
+        bodyPhotoId: bodyPhoto.id,
+        clothingItemId,
+      },
+    },
+  });
+
+  if (cached) {
+    res.json({ ...cached, fromCache: true });
+    return;
+  }
+
+  // Set up SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const sendEvent = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    const bodyPhotoPath = resolveAbsolutePath(bodyPhoto.imageUrl);
+    const garmentPath = resolveAbsolutePath(clothingItem.imageUrl);
+    const description = `${clothingItem.color} ${clothingItem.subcategory}`.trim();
+
+    const resultImageUrl = await generateTryOn(
+      bodyPhotoPath,
+      garmentPath,
+      description,
+      (stage: string) => sendEvent('progress', { stage }),
+    );
+
+    const tryOnResult = await prisma.tryOnResult.create({
+      data: {
+        userId,
+        bodyPhotoId: bodyPhoto.id,
+        clothingItemId,
+        resultImageUrl,
+      },
+    });
+
+    sendEvent('complete', tryOnResult);
+  } catch (error) {
+    console.error('Generate try-on stream error:', error);
+    sendEvent('error', { error: 'Failed to generate try-on. Please try again.' });
+  } finally {
+    res.end();
   }
 }
 

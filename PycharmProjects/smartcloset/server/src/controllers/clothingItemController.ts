@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth';
-import { createThumbnail, getImageUrl, deleteImage } from '../services/imageService';
+import { createThumbnail, getImageUrl, deleteImage, optimizeUploadedImage } from '../services/imageService';
 import { invalidateTryOnForClothingItem } from './tryonController';
 
 const clothingCategories = ['TOP', 'BOTTOM', 'OUTERWEAR', 'SHOES', 'ACCESSORY', 'UNDERWEAR', 'SWIMWEAR', 'FORMAL'] as const;
@@ -58,6 +58,7 @@ export async function createClothingItem(req: AuthenticatedRequest, res: Respons
     }
 
     const body = req.body as z.infer<typeof createClothingItemSchema>;
+    await optimizeUploadedImage(file.filename);
     const imageUrl = getImageUrl(file.filename);
     const thumbnailUrl = await createThumbnail(file.filename);
 
@@ -98,21 +99,33 @@ export async function getClothingItems(req: AuthenticatedRequest, res: Response)
     const favorite = req.query.favorite as string | undefined;
     const search = req.query.search as string | undefined;
 
+    const sort = req.query.sort as string | undefined;
+
     const where: Record<string, unknown> = { userId };
     if (category) where.category = category;
     if (favorite === 'true') where.isFavorite = true;
     if (search) {
+      // Case-insensitive search using SQLite LOWER()
+      const lowerSearch = search.toLowerCase();
       where.OR = [
-        { name: { contains: search } },
-        { brand: { contains: search } },
-        { color: { contains: search } },
-        { subcategory: { contains: search } },
+        { name: { contains: lowerSearch, mode: 'insensitive' } },
+        { brand: { contains: lowerSearch, mode: 'insensitive' } },
+        { color: { contains: lowerSearch, mode: 'insensitive' } },
+        { subcategory: { contains: lowerSearch, mode: 'insensitive' } },
       ];
     }
 
+    // Support multiple sort options
+    let orderBy: Record<string, string> = { createdAt: 'desc' };
+    if (sort === 'most_worn') orderBy = { timesWorn: 'desc' };
+    else if (sort === 'least_worn') orderBy = { timesWorn: 'asc' };
+    else if (sort === 'newest') orderBy = { createdAt: 'desc' };
+    else if (sort === 'oldest') orderBy = { createdAt: 'asc' };
+    else if (sort === 'name') orderBy = { name: 'asc' };
+
     const items = await prisma.clothingItem.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
     });
 
     res.json(items.map((item) => ({
@@ -186,6 +199,7 @@ export async function updateClothingItem(req: AuthenticatedRequest, res: Respons
 
     // Handle image replacement
     if (req.file) {
+      await optimizeUploadedImage(req.file.filename);
       const imageUrl = getImageUrl(req.file.filename);
       const thumbnailUrl = await createThumbnail(req.file.filename);
       data.imageUrl = imageUrl;

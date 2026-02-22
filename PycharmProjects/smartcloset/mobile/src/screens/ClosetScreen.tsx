@@ -20,6 +20,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 import { getFullImageUrl } from '../utils/image';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
+import { TryOnModal } from '../components/TryOnModal';
+import { checkTryOnResult } from '../services/tryon';
 import type { ClosetStackParamList } from '../navigation/types';
 import {
   ClothingItem,
@@ -27,6 +29,7 @@ import {
   Pattern,
   Season,
   Occasion,
+  SortOption,
   getClothingItems,
   createClothingItem,
   deleteClothingItem,
@@ -53,6 +56,7 @@ const SUBCATEGORIES: Record<ClothingCategory, string[]> = {
   FORMAL: ['Suit', 'Dress', 'Tuxedo', 'Gown'],
 };
 
+const TRYONABLE_CATEGORIES: ClothingCategory[] = ['TOP', 'BOTTOM', 'OUTERWEAR', 'FORMAL'];
 const PATTERNS: Pattern[] = ['SOLID', 'STRIPED', 'PLAID', 'FLORAL', 'PRINTED', 'OTHER'];
 const SEASONS: Season[] = ['SPRING', 'SUMMER', 'FALL', 'WINTER'];
 const OCCASIONS: Occasion[] = ['CASUAL', 'WORK', 'FORMAL', 'SPORT', 'GOING_OUT'];
@@ -65,8 +69,10 @@ export function ClosetScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ClothingCategory | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [modalVisible, setModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Add item form state
   const [formName, setFormName] = useState('');
@@ -81,6 +87,9 @@ export function ClosetScreen() {
   const [formImageUri, setFormImageUri] = useState('');
   const [previewUri, setPreviewUri] = useState('');
   const [previewSource, setPreviewSource] = useState<'camera' | 'library'>('camera');
+  const [tryOnVisible, setTryOnVisible] = useState(false);
+  const [tryOnItemId, setTryOnItemId] = useState('');
+  const [tryOnItemName, setTryOnItemName] = useState('');
 
   const fetchItems = useCallback(async () => {
     try {
@@ -89,15 +98,19 @@ export function ClosetScreen() {
         category: selectedCategory ?? undefined,
         favorite: showFavorites || undefined,
         search: searchQuery.trim() || undefined,
+        sort: sortBy,
       });
       setItems(data);
+      if (!selectedCategory && !showFavorites && !searchQuery.trim()) {
+        setTotalCount(data.length);
+      }
     } catch {
       Alert.alert('Error', 'Failed to load clothing items');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, showFavorites, searchQuery]);
+  }, [selectedCategory, showFavorites, searchQuery, sortBy]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -209,6 +222,21 @@ export function ClosetScreen() {
     }
   };
 
+  const handleQuickTryOn = async (item: ClothingItem) => {
+    try {
+      const check = await checkTryOnResult(item.id);
+      if (!check.hasBodyPhoto) {
+        Alert.alert('Body Photo Required', 'Upload a front body photo in the Avatar tab first.');
+        return;
+      }
+    } catch {
+      // proceed anyway
+    }
+    setTryOnItemId(item.id);
+    setTryOnItemName(item.name);
+    setTryOnVisible(true);
+  };
+
   const toggleArrayItem = <T extends string>(arr: T[], item: T): T[] =>
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
@@ -218,10 +246,20 @@ export function ClosetScreen() {
       onPress={() => navigation.navigate('ClothingItemDetail', { itemId: item.id })}
       onLongPress={() => handleDelete(item)}
     >
-      <Image
-        source={{ uri: getFullImageUrl(item.thumbnailUrl || item.imageUrl) }}
-        style={styles.itemImage}
-      />
+      <View>
+        <Image
+          source={{ uri: getFullImageUrl(item.thumbnailUrl || item.imageUrl) }}
+          style={styles.itemImage}
+        />
+        {TRYONABLE_CATEGORIES.includes(item.category) && (
+          <TouchableOpacity
+            style={styles.tryOnOverlay}
+            onPress={() => handleQuickTryOn(item)}
+          >
+            <Ionicons name="body-outline" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
       <View style={styles.itemInfo}>
         <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
         <Text style={styles.itemMeta}>{item.subcategory} &middot; {item.color}</Text>
@@ -255,6 +293,33 @@ export function ClosetScreen() {
             <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* Sort & Count Bar */}
+      <View style={styles.sortBar}>
+        <Text style={styles.itemCountText}>
+          {items.length} item{items.length !== 1 ? 's' : ''}
+        </Text>
+        <TouchableOpacity
+          style={styles.sortBtn}
+          onPress={() => {
+            const options: SortOption[] = ['newest', 'oldest', 'most_worn', 'least_worn', 'name'];
+            const labels: Record<SortOption, string> = {
+              newest: 'Newest First',
+              oldest: 'Oldest First',
+              most_worn: 'Most Worn',
+              least_worn: 'Least Worn',
+              name: 'Name A-Z',
+            };
+            const nextIdx = (options.indexOf(sortBy) + 1) % options.length;
+            setSortBy(options[nextIdx]);
+          }}
+        >
+          <Ionicons name="swap-vertical" size={16} color={Colors.accent} />
+          <Text style={styles.sortBtnText}>
+            {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'most_worn' ? 'Most Worn' : sortBy === 'least_worn' ? 'Least Worn' : 'Name'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Category Filter */}
@@ -326,6 +391,14 @@ export function ClosetScreen() {
           launchPicker(previewSource);
         }}
         onCancel={() => setPreviewUri('')}
+      />
+
+      {/* Try-On Modal */}
+      <TryOnModal
+        visible={tryOnVisible}
+        clothingItemId={tryOnItemId}
+        itemName={tryOnItemName}
+        onClose={() => setTryOnVisible(false)}
       />
 
       {/* Add Item Modal */}
@@ -523,6 +596,32 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     paddingVertical: 0,
   },
+  sortBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  itemCountText: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    fontWeight: FontWeight.medium,
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+  },
+  sortBtnText: {
+    fontSize: FontSize.xs,
+    color: Colors.accent,
+    fontWeight: FontWeight.medium,
+  },
   filterBar: {
     maxHeight: 52,
     borderBottomWidth: 1,
@@ -611,6 +710,14 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.accent,
     marginTop: 2,
+  },
+  tryOnOverlay: {
+    position: 'absolute',
+    bottom: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: 'rgba(0,184,148,0.85)',
+    borderRadius: 14,
+    padding: 6,
   },
   favoriteBtn: {
     position: 'absolute',
